@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduVibe - Online Learning Platform</title>
+    <link rel="icon" type="image/png" href="/static/images/favicon-eduvibe.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="container nav-wrap">
+            <a class="brand" href="/">
+                <img class="brand-logo-horizontal" src="/static/images/logo-eduvibe-horizontal.png" alt="EduVibe logo">
+                <span class="brand-text-fallback">EduVibe</span>
+            </a>
+            <nav class="nav-links">
+                <a class="nav-link" data-route="/" href="/">Home</a>
+                <a class="nav-link" data-route="/courses" href="/courses">Courses</a>
+                {% if session.get('username') %}
+                <a class="nav-link" data-route="/dashboard" href="/dashboard">Dashboard</a>
+                <a class="nav-link" data-route="/profile" href="/profile">Profile</a>
+                <a class="nav-link" data-route="/admin" href="/admin">Admin</a>
+                {% endif %}
+            </nav>
+            <div class="auth-state">
+                {% if session.get('username') %}
+                    <span class="user-badge">Signed in as <strong>{{ session.get('username') }}</strong></span>
+                    <a class="btn btn-secondary nav-auth-btn" data-route="/logout" href="/logout">Logout</a>
+                {% else %}
+                    <span class="user-badge is-guest">Guest mode</span>
+                    <a class="btn nav-auth-btn" data-route="/login" href="/login">Login</a>
+                    <a class="btn btn-secondary nav-auth-btn" data-route="/register" href="/register">Register</a>
+                {% endif %}
+            </div>
+            <button id="menuToggle" class="menu-toggle" type="button" aria-label="Toggle navigation">Menu</button>
+        </div>
+    </header>
+    <div class="page-shell">
+        <main class="container main-content">
+            {% block content %}{% endblock %}
+        </main>
+        <footer class="container footer-note">
+            <p><img class="footer-logo-icon" src="/static/images/logo-eduvibe-icon.png" alt="EduVibe icon"><span class="footer-brand-text">EduVibe · Learning Management Platform</span></p>
+        </footer>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

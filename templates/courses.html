@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Courses</h2>
+<form class="form-inline card" method="get">
+    <input id="courseSearchInput" name="search" placeholder="Search courses" value="{{ search }}">
+    <select name="category">
+        <option value="">All categories</option>
+        {% for item in categories %}
+        <option value="{{ item }}" {% if category == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+    </select>
+    <select name="level">
+        <option value="">All levels</option>
+        {% for item in levels %}
+        <option value="{{ item }}" {% if level == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+    </select>
+    <input name="max_duration" type="number" min="1" placeholder="Max hours" value="{{ max_duration }}">
+    <select name="min_rating">
+        <option value="">Any rating</option>
+        <option value="4" {% if min_rating == "4" %}selected{% endif %}>4+ stars</option>
+        <option value="3" {% if min_rating == "3" %}selected{% endif %}>3+ stars</option>
+    </select>
+    <select name="sort">
+        <option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest</option>
+        <option value="popular" {% if sort == "popular" %}selected{% endif %}>Most popular</option>
+        <option value="rating" {% if sort == "rating" %}selected{% endif %}>Top rated</option>
+        <option value="duration_asc" {% if sort == "duration_asc" %}selected{% endif %}>Duration: short first</option>
+        <option value="duration_desc" {% if sort == "duration_desc" %}selected{% endif %}>Duration: long first</option>
+    </select>
+    <button type="submit">Search</button>
+</form>
+
+<section id="courseGrid" class="grid grid-3">
+    {% for course in courses %}
+    <article class="card course-card" data-search="{{ (course['title'] ~ ' ' ~ course['category'] ~ ' ' ~ course['description'] ~ ' ' ~ course['level'])|lower }}">
+        <span class="meta">{{ course['category'] }}</span>
+        <h3>{{ course['title'] }}</h3>
+        <p class="muted">{{ course['description'] }}</p>
+        <p class="muted"><strong>Level:</strong> {{ course['level'] }} · <strong>Duration:</strong> {{ course['duration_hours'] }}h</p>
+        <p class="muted"><strong>Rating:</strong> {{ course['avg_rating'] }} / 5 ({{ course['review_count'] }} reviews)</p>
+        <div class="actions">
+            <a class="btn btn-secondary" href="/courses/{{ course['id'] }}">View details</a>
+            {% if user_id and course['id'] in wishlist_ids %}
+            <form class="inline-action" method="post" action="/wishlist/{{ course['id'] }}/remove">
+                <button class="btn btn-secondary" type="submit">In wishlist</button>
+            </form>
+            {% elif user_id %}
+            <form class="inline-action" method="post" action="/wishlist/{{ course['id'] }}/add">
+                <button class="btn btn-secondary" type="submit">Add to wishlist</button>
+            </form>
+            {% endif %}
+            {% if user_id and course['id'] in enrolled_ids %}
+            <a class="btn" href="/learn/{{ course['id'] }}">Open course</a>
+            <form class="inline-action" method="post" action="/withdraw/{{ course['id'] }}" onsubmit="return confirm('Are you sure you want to withdraw from this course?')">
+                <button class="btn btn-secondary" type="submit">Withdraw</button>
+            </form>
+            {% elif user_id %}
+            <form class="inline-action" method="post" action="/enroll/{{ course['id'] }}">
+                <button type="submit">Enroll</button>
+            </form>
+            {% else %}
+            <a class="btn" href="/login">Login to enroll</a>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+</section>
+<p id="courseEmptyState" class="muted course-empty-state">No courses match your search.</p>
+<section class="card">
+    <div class="actions">
+        <span class="muted">Showing page {{ page }} of {{ total_pages }} · {{ total_courses }} courses</span>
+        {% if page > 1 %}
+        <a class="btn btn-secondary" href="{{ url_for('courses.list_courses', search=search, category=category, level=level, max_duration=max_duration, min_rating=min_rating, sort=sort, page=page-1) }}">Previous</a>
+        {% endif %}
+        {% if page < total_pages %}
+        <a class="btn btn-secondary" href="{{ url_for('courses.list_courses', search=search, category=category, level=level, max_duration=max_duration, min_rating=min_rating, sort=sort, page=page+1) }}">Next</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

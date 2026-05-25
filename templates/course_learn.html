@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+    <span class="meta">{{ course['category'] }}</span>
+    <h2>{{ course['title'] }}</h2>
+    <p class="muted"><strong>Level:</strong> {{ course['level'] }} · <strong>Duration:</strong> {{ course['duration_hours'] }} hours</p>
+    <p>{{ course['description'] }}</p>
+    <div class="progress-wrap">
+        <div class="progress-label"><strong>Course progress:</strong> {{ progress_pct }}%</div>
+        <progress class="progress-native" value="{{ progress_pct }}" max="100"></progress>
+        {% if continue_lesson %}
+        <p class="muted">Continue with: <a href="#{{ continue_lesson['key'] }}">{{ continue_lesson['title'] }}</a> ({{ continue_lesson['type'] }})</p>
+        {% endif %}
+    </div>
+    <div class="actions">
+        <a class="btn btn-secondary" href="/courses/{{ course['id'] }}">Course details</a>
+        <a class="btn" href="/dashboard">Go to dashboard</a>
+    </div>
+</section>
+
+<section class="card">
+    <h3>Course Content</h3>
+    {% for section in sections %}
+    <h4>{{ section['title'] }}</h4>
+    <ul class="table-like">
+        {% for lesson in section['lessons'] %}
+        <li id="{{ lesson['key'] }}">
+            <span>{{ lesson['title'] }} <small class="muted">({{ lesson['type'] }})</small></span>
+            <span class="actions">
+                <span class="meta">{{ lesson['duration'] }}</span>
+                {% if lesson['key'] in completed_keys %}
+                <span class="meta">Completed</span>
+                {% else %}
+                <form class="inline-action" method="post" action="/learn/{{ course['id'] }}/progress">
+                    <input type="hidden" name="lesson_key" value="{{ lesson['key'] }}">
+                    <input type="hidden" name="completed" value="1">
+                    <button class="btn btn-secondary btn-compact" type="submit">Mark complete</button>
+                </form>
+                {% endif %}
+            </span>
+        </li>
+        {% if lesson['material'] %}
+        <li>
+            <details class="lesson-material">
+                <summary class="lesson-material-summary">Lesson material</summary>
+                <div class="stat">
+                    {% if lesson['material'].get('summary') %}
+                    <p class="muted"><strong>Lesson brief:</strong> {{ lesson['material']['summary'] }}</p>
+                    {% endif %}
+                    {% if lesson['material'].get('outcome') %}
+                    <p class="muted"><strong>Outcome:</strong> {{ lesson['material']['outcome'] }}</p>
+                    {% endif %}
+                    {% if lesson['material'].get('scenario_task') %}
+                    <p class="muted"><strong>Scenario task:</strong> {{ lesson['material']['scenario_task'] }}</p>
+                    {% endif %}
+                    {% if lesson['material'].get('artifacts') %}
+                    <p class="muted"><strong>SOC artifacts:</strong></p>
+                    <ul>
+                        {% for artifact in lesson['material']['artifacts'] %}
+                        <li><strong>{{ artifact['name'] }}:</strong> {{ artifact['value'] }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    {% if lesson['type'] == 'video' and lesson['material'].get('video_url') %}
+                    <p class="muted"><strong>Video:</strong> <a href="{{ lesson['material']['video_url'] }}" target="_blank" rel="noopener">Open lesson video</a></p>
+                    {% endif %}
+
+                    {% if lesson['material'].get('objectives') %}
+                    <p class="muted"><strong>Learning objectives:</strong></p>
+                    <ul>
+                        {% for item in lesson['material']['objectives'] %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    {% if lesson['material'].get('sections') %}
+                    {% for part in lesson['material']['sections'] %}
+                    <p class="muted"><strong>{{ part['heading'] }}</strong></p>
+                    <ul>
+                        {% for point in part['points'] %}
+                        <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if lesson['type'] == 'quiz' and lesson['material'].get('questions') %}
+                    <p class="muted"><strong>Quick check quiz:</strong></p>
+                    <form class="lesson-quiz-form" data-lesson-key="{{ lesson['key'] }}" data-course-id="{{ course['id'] }}">
+                        {% for q in lesson['material']['questions'] %}
+                        {% set q_index = loop.index0 %}
+                        <fieldset class="lesson-quiz-question" data-answer="{{ q['answer'] }}" data-explanation="{{ q.get('explanation', '') }}">
+                            <legend><strong>{{ loop.index }}. {{ q['q'] }}</strong></legend>
+                            {% for option in q.get('options', []) %}
+                            <label class="quiz-option">
+                                <input type="radio" name="{{ lesson['key'] }}_q{{ q_index }}" value="{{ option }}">
+                                {{ option }}
+                            </label>
+                            {% endfor %}
+                            <p class="muted quiz-feedback" hidden></p>
+                        </fieldset>
+                        {% endfor %}
+                        <div class="actions">
+                            <button class="btn btn-secondary btn-compact" type="submit">Check answers</button>
+                            <button class="btn btn-secondary btn-compact" type="button" data-quiz-retake>Retake</button>
+                        </div>
+                        <p class="muted quiz-summary" hidden></p>
+                    </form>
+                    {% set attempt = latest_quiz_attempts.get(lesson['key']) if latest_quiz_attempts is defined else None %}
+                    {% if attempt %}
+                    <p class="muted">
+                        Last attempt: #{{ attempt['attempt_number'] }} ·
+                        Score {{ attempt['score'] }}/{{ attempt['total_questions'] }} ·
+                        {% if attempt['passed'] %}Passed{% else %}Failed{% endif %}
+                    </p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </details>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+    {% endfor %}
+</section>
+{% endblock %}

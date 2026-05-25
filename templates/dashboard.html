@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+<p class="muted">Overview of current account and quick actions.</p>
+
+<section class="split">
+    <article class="card">
+        <h3>{{ user['username'] }}</h3>
+        <div class="stat"><strong>Email:</strong> {{ user['email'] }}</div>
+        <div class="stat"><strong>Role:</strong> {{ user['role'] }}</div>
+        {# (A3) stored bio displayed on dashboard (Table 4) #}
+        <div class="stat"><strong>Bio:</strong> {{ user['bio']|safe }}</div>
+    </article>
+
+    <article class="card">
+        <h3>Quick Actions</h3>
+        <div class="actions">
+            <a class="btn" href="/courses">Browse courses</a>
+            <a class="btn btn-secondary" href="/profile">Edit profile</a>
+        </div>
+        <p class="muted">Use this section to move between common learning workflows.</p>
+    </article>
+</section>
+
+<section class="card">
+    <h3>Continue Learning</h3>
+    {% if continue_learning %}
+    <ul class="table-like">
+        {% for item in continue_learning %}
+        <li>
+            <span>{{ item['title'] }}</span>
+            <span class="actions">
+                <span class="meta">{{ item['progress_pct'] }}%</span>
+                <a class="btn" href="/learn/{{ item['course_id'] }}#{{ item['next_key'] }}">Continue</a>
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Start learning from the catalog to see progress here.</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h3>Enrolled Courses</h3>
+    {% if enrollments %}
+    <ul class="table-like">
+        {% for item in enrollments %}
+        <li>
+            <span><a href="/learn/{{ item['id'] }}">{{ item['title'] }}</a></span>
+            <span class="actions">
+                <span class="meta">{{ item['category'] }}</span>
+                <a class="btn btn-secondary" href="/learn/{{ item['id'] }}">Open course</a>
+                <form class="inline-action" method="post" action="/withdraw/{{ item['id'] }}" onsubmit="return confirm('Are you sure you want to withdraw from this course?')">
+                    <button class="btn btn-secondary" type="submit">Withdraw</button>
+                </form>
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">You are not enrolled in any courses yet.</p>
+    <div class="actions">
+        <a class="btn btn-secondary" href="/courses">Find a course</a>
+    </div>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h3>Wishlist</h3>
+    {% if wishlist %}
+    <ul class="table-like">
+        {% for item in wishlist %}
+        <li>
+            <span><a href="/courses/{{ item['id'] }}">{{ item['title'] }}</a></span>
+            <span class="actions">
+                <span class="meta">{{ item['category'] }}</span>
+                <form class="inline-action" method="post" action="/wishlist/{{ item['id'] }}/remove">
+                    <button class="btn btn-secondary" type="submit">Remove</button>
+                </form>
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Your wishlist is empty.</p>
+    {% endif %}
+</section>
+{% endblock %}

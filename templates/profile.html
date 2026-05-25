@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>My Profile</h2>
+<section class="split">
+    <article class="card">
+        <h3>Account Info</h3>
+        <div class="stat"><strong>Username:</strong> {{ user['username'] }}</div>
+        <div class="stat"><strong>Email:</strong> {{ user['email'] }}</div>
+        <div class="stat"><strong>Role:</strong> {{ user['role'] }}</div>
+        {# (A3) stored bio displayed on profile page (Table 4) #}
+        <div class="stat"><strong>Bio:</strong> {{ user['bio']|safe }}</div>
+    </article>
+
+    <article class="card">
+        <h3>Update Bio</h3>
+        <form method="post">
+            <textarea name="bio" placeholder="Update bio">{{ user['bio'] }}</textarea>
+            <div class="actions">
+                <button type="submit">Save</button>
+                {% if user['role'] != 'admin' %}
+                <a class="btn btn-secondary" href="{{ url_for('profile.dashboard') }}">Back to dashboard</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+</section>
+
+<section class="split">
+    <article class="card">
+        <h3>Password</h3>
+        <form method="post" action="{{ url_for('profile.change_password') }}">
+            <input type="password" name="current_password" placeholder="Current password">
+            <input type="password" name="new_password" placeholder="New password">
+            <div class="actions">
+                <button type="submit">Change password</button>
+            </div>
+        </form>
+    </article>
+    <article class="card">
+        <h3>Notifications</h3>
+        {% if notifications %}
+        <ul class="table-like">
+            {% for item in notifications %}
+            <li class="notification-row">
+                <span>{{ item['message'] }}</span>
+                <span class="actions notification-actions">
+                    <span class="meta">{{ item['type'] }}</span>
+                    {% if not item['is_read'] %}
+                    <form class="inline-action" method="post" action="{{ url_for('profile.mark_notification_read', notification_id=item['id']) }}">
+                        <button class="btn btn-secondary btn-compact" type="submit">Mark read</button>
+                    </form>
+                    {% endif %}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">No notifications yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

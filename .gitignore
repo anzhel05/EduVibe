@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+
+logs/
+database.db
+
+static/uploads/*
+!static/uploads/.gitkeep
+
+__MACOSX/
+.DS_Store

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+    <h2>Detection Status</h2>
+    <p class="muted">Rule trigger counts from current application logs.</p>
+    <ul class="table-like">
+        {% for item in status_rows %}
+        <li>
+            <span>{{ item['rule'] }}</span>
+            <span class="actions">
+                <span class="meta">count: {{ item['count'] }}</span>
+                <span class="meta">severity: {{ item['severity'] }}</span>
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="actions">
+        <a class="btn btn-secondary" href="/admin">Back to admin</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="form-card">
+    <h2>Create Account</h2>
+    <p class="muted">Register as a new student to simulate platform activity.</p>
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+        <div class="form-row">
+            <label>Username</label>
+            <input name="username" placeholder="username">
+        </div>
+        <div class="form-row">
+            <label>Email</label>
+            <input name="email" placeholder="email">
+        </div>
+        <div class="form-row">
+            <label>Password</label>
+            <input name="password" type="password" placeholder="password">
+        </div>
+        <div class="actions">
+            <button type="submit">Create account</button>
+            <a class="btn btn-secondary" href="/login">Back to login</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

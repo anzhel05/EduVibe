@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+{% block content %}
+{% set reporting_data = reporting if reporting is defined else {'active_users_7d': 0, 'enrollments_24h': 0, 'uploads_24h': 0, 'suspicious_summary': []} %}
+{% set publish_data = publish_states if publish_states is defined else {} %}
+{% set sections_data = sections if sections is defined else [] %}
+{% set lessons_data = lessons if lessons is defined else [] %}
+{% set materials_data = course_materials if course_materials is defined else {} %}
+{% set lesson_materials_data = lesson_materials if lesson_materials is defined else {} %}
+<section class="admin-panel">
+<h2>Administration</h2>
+<p class="muted">Manage users, course catalog, and platform operations.</p>
+{% if admin_message %}
+<p class="status-message">{{ admin_message }}</p>
+{% endif %}
+{% if upload_message %}
+<p class="success-message">{{ upload_message }}</p>
+{% endif %}
+
+<section class="grid grid-2">
+    <article class="card">
+        <p class="ops-kicker">Platform Ops</p>
+        <h3>Admin Tools</h3>
+        <div class="actions">
+            <a class="btn btn-secondary" href="{{ url_for('profile.dashboard') }}">Back to dashboard</a>
+            <a class="btn btn-secondary" href="{{ url_for('profile.file_view', path='logs/app.log') }}">View logs file</a>
+            <a class="btn btn-secondary" href="{{ url_for('profile.audit_timeline') }}">Audit timeline</a>
+            <a class="btn btn-secondary" href="{{ url_for('profile.detection_status') }}">Detection status</a>
+        </div>
+    </article>
+    <article class="card">
+        <h3>Operational Metrics</h3>
+        <div class="stat"><strong>Active users (7d):</strong> {{ reporting_data['active_users_7d'] }}</div>
+        <div class="stat"><strong>Enrollments (24h):</strong> {{ reporting_data['enrollments_24h'] }}</div>
+        <div class="stat"><strong>Uploads (24h):</strong> {{ reporting_data['uploads_24h'] }}</div>
+    </article>
+    <article class="card">
+        <h3>Suspicious Events Summary</h3>
+        {% if reporting_data['suspicious_summary'] %}
+        <ul class="table-like">
+            {% for event_name, total in reporting_data['suspicious_summary'] %}
+            <li>
+                <span>{{ event_name }}</span>
+                <span class="meta">{{ total }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">No suspicious events in current log file.</p>
+        {% endif %}
+    </article>
+    <article class="card">
+        <h3>Service Connectivity Check</h3>
+        <p class="muted">Check availability of external hosts used by content and integrations.</p>
+        <form action="/admin/run" method="post">
+            <div class="form-row">
+                <label>Service host</label>
+                <input name="host" placeholder="cdn.eduvibe.local or 8.8.8.8">
+            </div>
+            <div class="actions">
+                <button type="submit">Check connectivity</button>
+            </div>
+        </form>
+        {% if command_result %}
+        <h4>Connectivity Output</h4>
+        <pre>{{ command_result }}</pre>
+        {% endif %}
+    </article>
+</section>
+
+<section class="grid">
+    <article class="card">
+        <details class="admin-section-toggle" open>
+        <summary class="admin-section-summary">
+            <h3>Users</h3>
+        </summary>
+        <div class="admin-toolbar">
+            <form class="form-inline admin-toolbar-left" method="get" action="/admin">
+                <span class="toolbar-label">Filter users</span>
+                <div class="toolbar-controls">
+                    <input name="user_search" placeholder="Search username or email" value="{{ user_search }}">
+                <select name="user_role">
+                    <option value="">All roles</option>
+                    <option value="student" {% if user_role == 'student' %}selected{% endif %}>student</option>
+                    <option value="instructor" {% if user_role == 'instructor' %}selected{% endif %}>instructor</option>
+                    <option value="admin" {% if user_role == 'admin' %}selected{% endif %}>admin</option>
+                </select>
+                <select name="user_visibility">
+                    <option value="all" {% if user_visibility == 'all' %}selected{% endif %}>All users</option>
+                    <option value="active" {% if user_visibility == 'active' %}selected{% endif %}>Active only</option>
+                    <option value="archived" {% if user_visibility == 'archived' %}selected{% endif %}>Archived only</option>
+                </select>
+                    <button type="submit">Apply</button>
+                    <a class="btn btn-secondary" href="/admin">Reset</a>
+                </div>
+            </form>
+            <form id="bulk-users-form" class="form-inline admin-toolbar-right" method="post" action="/admin/users/bulk">
+                <span class="toolbar-label">Bulk actions</span>
+                <div class="toolbar-controls">
+                    <label class="inline-check" for="userSelectAll">
+                    <input id="userSelectAll" type="checkbox">
+                    Select all
+                </label>
+                <span id="userSelectedCount" class="selected-count">0 selected</span>
+                <select id="usersBulkAction" name="bulk_action">
+                    <option value="">Bulk action</option>
+                    <option value="set_role">Set role</option>
+                    <option value="set_status">Set status</option>
+                    <option value="archive">Archive selected</option>
+                    <option value="restore">Restore selected</option>
+                </select>
+                <select id="usersBulkRole" name="bulk_role" hidden>
+                    <option value="">Role target</option>
+                    <option value="student">student</option>
+                    <option value="instructor">instructor</option>
+                    <option value="admin">admin</option>
+                </select>
+                <select id="usersBulkStatus" name="bulk_status" hidden>
+                    <option value="">Status target</option>
+                    <option value="active">active</option>
+                    <option value="locked">locked</option>
+                    <option value="suspended">suspended</option>
+                </select>
+                    <button id="usersBulkApply" type="submit" disabled>Apply</button>
+                </div>
+            </form>
+        </div>
+        <ul class="table-like">
+            {% for user in users %}
+            <li class="user-row">
+                <span>
+                    <input type="checkbox" name="user_ids" class="user-select-checkbox" value="{{ user['id'] }}" form="bulk-users-form">
+                    #{{ user['id'] }} {{ user['username'] }}<br>
+                    <small class="muted">{{ user['email'] }} · {{ user['role'] }} · status: {{ user['status'] }}{% if user['archived_at'] %} · archived{% endif %}</small><br>
+                    <small class="muted">Last action: {{ user_last_action.get(user['username'], 'No activity yet') }}</small>
+                </span>
+                <span class="actions user-actions">
+                    <details class="inline-edit-toggle">
+                        <summary class="btn btn-secondary icon-btn" title="Edit user">
+                            <span class="icon-glyph" aria-hidden="true">&#9998;</span>
+                            <span class="icon-label">Edit</span>
+                        </summary>
+                        <form class="inline-edit-course" method="post" action="/admin/users/{{ user['id'] }}/edit">
+                            <input name="username" value="{{ user['username'] }}" placeholder="Username">
+                            <input name="email" value="{{ user['email'] }}" placeholder="Email">
+                            <select name="role">
+                                <option value="student" {% if user['role'] == 'student' %}selected{% endif %}>student</option>
+                                <option value="instructor" {% if user['role'] == 'instructor' %}selected{% endif %}>instructor</option>
+                                <option value="admin" {% if user['role'] == 'admin' %}selected{% endif %}>admin</option>
+                            </select>
+                            <select name="status">
+                                <option value="active" {% if user['status'] == 'active' %}selected{% endif %}>active</option>
+                                <option value="locked" {% if user['status'] == 'locked' %}selected{% endif %}>locked</option>
+                                <option value="suspended" {% if user['status'] == 'suspended' %}selected{% endif %}>suspended</option>
+                            </select>
+                            <input type="password" name="password" placeholder="New password (optional)">
+                            <textarea name="bio" placeholder="Bio">{{ user['bio'] }}</textarea>
+                            <div class="inline-edit-footer">
+                                <button type="submit">Save user</button>
+                                <button type="button" class="btn btn-secondary" onclick="this.closest('details').removeAttribute('open')">Cancel</button>
+                            </div>
+                        </form>
+                    </details>
+                    {% if user['archived_at'] %}
+                    <form class="inline-action" method="post" action="/admin/users/{{ user['id'] }}/restore">
+                        <button class="btn btn-secondary icon-btn" type="submit" title="Restore user">
+                            <span class="icon-glyph" aria-hidden="true">&#8635;</span>
+                            <span class="icon-label">Restore</span>
+                        </button>
+                    </form>
+                    {% else %}
+                    <form class="inline-action" method="post" action="/admin/users/{{ user['id'] }}/delete" onsubmit="return confirm('Archive this user? You can restore later.')">
+                        <button class="btn-danger icon-btn danger-icon-btn" type="submit" title="Archive user">
+                            <span class="icon-glyph" aria-hidden="true">&#128465;</span>
+                            <span class="icon-label">Archive</span>
+                        </button>
+                    </form>
+                    {% endif %}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        <details class="create-course-toggle">
+            <summary class="btn">Add new user</summary>
+            <form class="create-course-form" method="post" action="/admin/users/create">
+                <input name="username" placeholder="Username">
+                <input name="email" placeholder="Email">
+                <input type="password" name="password" placeholder="Password">
+                <select name="role">
+                    <option value="student">student</option>
+                    <option value="instructor">instructor</option>
+                    <option value="admin">admin</option>
+                </select>
+                <select name="status">
+                    <option value="active">active</option>
+                    <option value="locked">locked</option>
+                    <option value="suspended">suspended</option>
+                </select>
+                <textarea name="bio" placeholder="Bio (optional)"></textarea>
+                <div class="actions">
+                    <button type="submit">Create user</button>
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('details').removeAttribute('open')">Cancel</button>
+                </div>
+            </form>
+        </details>
+        </details>
+    </article>
+
+    <article class="card">
+        <details class="admin-section-toggle" open>
+        <summary class="admin-section-summary">
+            <h3>Courses</h3>
+        </summary>
+        <div class="admin-toolbar">
+            <form class="form-inline admin-toolbar-left" method="get" action="/admin">
+                <span class="toolbar-label">Filter courses</span>
+                <div class="toolbar-controls">
+                    <input name="course_search" placeholder="Search course title" value="{{ course_search }}">
+                <select name="course_category">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if course_category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+                <select name="course_visibility">
+                    <option value="all" {% if course_visibility == 'all' %}selected{% endif %}>All courses</option>
+                    <option value="active" {% if course_visibility == 'active' %}selected{% endif %}>Active only</option>
+                    <option value="archived" {% if course_visibility == 'archived' %}selected{% endif %}>Archived only</option>
+                </select>
+                    <button type="submit">Apply</button>
+                    <a class="btn btn-secondary" href="/admin">Reset</a>
+                </div>
+            </form>
+            <form id="bulk-courses-form" class="form-inline admin-toolbar-right" method="post" action="/admin/courses/bulk">
+                <span class="toolbar-label">Bulk actions</span>
+                <div class="toolbar-controls">
+                    <label class="inline-check" for="courseSelectAll">
+                    <input id="courseSelectAll" type="checkbox">
+                    Select all
+                </label>
+                <span id="courseSelectedCount" class="selected-count">0 selected</span>
+                <select id="coursesBulkAction" name="bulk_action">
+                    <option value="">Bulk action</option>
+                    <option value="publish">Set published</option>
+                    <option value="draft">Set draft</option>
+                    <option value="archive">Archive selected</option>
+                    <option value="restore">Restore selected</option>
+                </select>
+                    <button id="coursesBulkApply" type="submit" disabled>Apply</button>
+                </div>
+            </form>
+        </div>
+        <ul class="table-like">
+            {% for course in courses %}
+            <li class="course-row">
+                <div class="course-main">
+                    <span class="row-title"><input type="checkbox" name="course_ids" class="course-select-checkbox" value="{{ course['id'] }}" form="bulk-courses-form"> #{{ course['id'] }} {{ course['title'] }}</span>
+                    <span class="actions course-actions">
+                        <form id="course-delete-{{ course['id'] }}" class="course-delete-form" method="post" action="/admin/courses/{{ course['id'] }}/delete" onsubmit="return confirm('Archive this course? It will be hidden from the catalog until restored.')"></form>
+                        <form id="course-restore-{{ course['id'] }}" class="course-restore-form" method="post" action="/admin/courses/{{ course['id'] }}/restore"></form>
+                        <span class="meta">{{ course['category'] }}</span>
+                        <span class="meta">State: {{ publish_data.get(course['id'], 'draft') }}</span>
+                        <span class="meta">{% if course['archived_at'] %}Archived{% else %}Active{% endif %}</span>
+                        <form class="inline-action" method="post" action="/admin/courses/{{ course['id'] }}/publish">
+                            {% if publish_data.get(course['id'], 'draft') == 'published' %}
+                            <input type="hidden" name="status" value="draft">
+                            <button class="btn btn-secondary" type="submit">Set Draft</button>
+                            {% else %}
+                            <input type="hidden" name="status" value="published">
+                            <button class="btn btn-secondary" type="submit">Publish</button>
+                            {% endif %}
+                        </form>
+                        <details class="inline-edit-toggle course-editor-toggle">
+                            <summary class="btn btn-secondary icon-btn" title="Edit course">
+                                <span class="icon-glyph" aria-hidden="true">&#9998;</span>
+                                <span class="icon-label">Edit</span>
+                            </summary>
+                            <div class="course-editor-shell">
+                                <form id="edit-course-{{ course['id'] }}" class="inline-edit-course" method="post" action="/admin/courses/{{ course['id'] }}/edit">
+                                    <input name="title" value="{{ course['title'] }}" placeholder="Title">
+                                    <input name="category" value="{{ course['category'] }}" placeholder="Category">
+                                    <input name="level" value="{{ course['level'] }}" placeholder="Level">
+                                    <input name="duration_hours" value="{{ course['duration_hours'] }}" placeholder="Hours">
+                                    <select name="instructor_id">
+                                        <option value="">Assign instructor</option>
+                                        {% for instructor in instructors %}
+                                        <option value="{{ instructor['id'] }}" {% if course['instructor_id'] == instructor['id'] %}selected{% endif %}>{{ instructor['username'] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <textarea name="description" placeholder="Description">{{ course['description'] }}</textarea>
+                                    <div class="inline-edit-footer">
+                                        <button type="submit">Save course details</button>
+                                    </div>
+                                </form>
+
+                                <div class="curriculum-builder card">
+                                    <h4>Curriculum</h4>
+                                    <p class="muted">Manage sections and ordering.</p>
+                                    <ul class="table-like">
+                                        {% for section in sections_data if section['course_id'] == course['id'] %}
+                                        <li>
+                                            <span>#{{ section['position'] }} {{ section['title'] }}</span>
+                                            <span class="actions">
+                                                <span class="meta">Section</span>
+                                                <form class="inline-action section-edit-form" method="post" action="/admin/sections/{{ section['id'] }}/edit">
+                                                    <input name="title" value="{{ section['title'] }}" placeholder="Rename section">
+                                                    <input name="position" type="number" min="1" value="{{ section['position'] }}" placeholder="#">
+                                                    <button class="btn btn-secondary" type="submit">Save</button>
+                                                    <button class="btn-danger" type="submit" formaction="/admin/sections/{{ section['id'] }}/delete" formmethod="post" onclick="return confirm('Delete this section and its lessons?')">Delete</button>
+                                                </form>
+                                            </span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    <form method="post" action="/admin/courses/{{ course['id'] }}/section/add">
+                                        <input name="title" placeholder="New section title">
+                                        <button type="submit">Add section</button>
+                                    </form>
+                                </div>
+
+                                <div class="curriculum-builder lessons-builder card">
+                                    <h4>Lessons</h4>
+                                    <p class="muted">Manage lesson details and material payload (plain text or material_v1 JSON).</p>
+                                    <ul class="table-like">
+                                        {% for lesson in lessons_data if lesson['course_id'] == course['id'] %}
+                                        <li>
+                                            <span>{{ lesson['title'] }}</span>
+                                            <span class="actions">
+                                                <span class="meta">{{ lesson['lesson_type'] }} · #{{ lesson['position'] }}</span>
+                                                <form class="inline-action lesson-edit-form" method="post" action="/admin/lessons/{{ lesson['id'] }}/edit">
+                                                    <input name="title" value="{{ lesson['title'] }}" placeholder="Rename lesson">
+                                                    <input name="position" type="number" min="1" value="{{ lesson['position'] }}" placeholder="#">
+                                                    <select name="lesson_type">
+                                                        <option value="video" {% if lesson['lesson_type'] == 'video' %}selected{% endif %}>video</option>
+                                                        <option value="article" {% if lesson['lesson_type'] == 'article' %}selected{% endif %}>article</option>
+                                                        <option value="quiz" {% if lesson['lesson_type'] == 'quiz' %}selected{% endif %}>quiz</option>
+                                                    </select>
+                                                    <textarea name="content" class="lesson-material-editor" placeholder='{"format":"material_v1","summary":"...","outcome":"...","objectives":["..."],"scenario_task":"...","artifacts":[{"name":"...","value":"..."}],"questions":[{"q":"...","options":["A","B"],"answer":"A","explanation":"..."}]}'>{{ lesson['content_pretty'] }}</textarea>
+                                                    <button class="btn btn-secondary" type="submit">Save</button>
+                                                    <button class="btn-danger" type="submit" formaction="/admin/lessons/{{ lesson['id'] }}/delete" formmethod="post" onclick="return confirm('Delete this lesson?')">Delete</button>
+                                                </form>
+                                            </span>
+                                        </li>
+                                        <li>
+                                            <form class="inline-edit-upload" action="/admin/upload" method="post" enctype="multipart/form-data">
+                                                <input type="hidden" name="course_id" value="{{ course['id'] }}">
+                                                <input type="hidden" name="lesson_id" value="{{ lesson['id'] }}">
+                                                <input type="file" name="file">
+                                                <button type="submit">Attach to lesson</button>
+                                            </form>
+                                            {% set lesson_files = lesson_materials_data.get(lesson['id'], []) %}
+                                            {% if lesson_files %}
+                                            <div class="material-list">
+                                                {% for material in lesson_files %}
+                                                <div class="material-item">
+                                                    <a href="/static/uploads/{{ material['stored_filename'] }}" target="_blank">{{ material['original_filename'] }}</a>
+                                                    <form class="inline-action" method="post" action="/admin/materials/{{ material['id'] }}/delete" onsubmit="return confirm('Are you sure you want to remove this file?')">
+                                                        <button class="btn-danger" type="submit">Remove</button>
+                                                    </form>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    <form method="post" action="/admin/courses/{{ course['id'] }}/lesson/add">
+                                        <select name="section_id">
+                                            {% for section in sections_data if section['course_id'] == course['id'] %}
+                                            <option value="{{ section['id'] }}">{{ section['title'] }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <input name="title" placeholder="Lesson title">
+                                        <select name="lesson_type">
+                                            <option value="video">video</option>
+                                            <option value="article">article</option>
+                                            <option value="quiz">quiz</option>
+                                        </select>
+                                        <textarea name="content" placeholder="Lesson content"></textarea>
+                                        <button type="submit">Add lesson</button>
+                                    </form>
+                                </div>
+
+                                <form class="inline-edit-upload" action="/admin/upload" method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="course_id" value="{{ course['id'] }}">
+                                    <input type="file" name="file">
+                                    <button type="submit">Attach course material</button>
+                                </form>
+                                {% set materials = materials_data.get(course['id'], []) %}
+                                {% if materials %}
+                                <div class="material-list">
+                                    <p class="muted">Attached materials</p>
+                                    {% for material in materials %}
+                                    <div class="material-item">
+                                        <a href="/static/uploads/{{ material['stored_filename'] }}" target="_blank">{{ material['original_filename'] }}</a>
+                                        <form class="inline-action" method="post" action="/admin/materials/{{ material['id'] }}/delete" onsubmit="return confirm('Are you sure you want to remove this file?')">
+                                            <button class="btn-danger" type="submit">Remove</button>
+                                        </form>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                <div class="inline-edit-footer course-editor-footer">
+                                    <button type="button" class="btn btn-secondary" onclick="this.closest('details').removeAttribute('open')">Close editor</button>
+                                    {% if course['archived_at'] %}
+                                    <button type="submit" form="course-restore-{{ course['id'] }}" class="btn btn-secondary icon-btn course-delete-expanded" title="Restore course">
+                                        <span class="icon-glyph" aria-hidden="true">&#8635;</span>
+                                        <span class="icon-label">Restore</span>
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" form="course-delete-{{ course['id'] }}" class="btn btn-danger icon-btn danger-icon-btn course-delete-expanded" title="Archive course">
+                                        <span class="icon-glyph" aria-hidden="true">&#128465;</span>
+                                        <span class="icon-label">Archive</span>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </details>
+                        {% if course['archived_at'] %}
+                        <button type="submit" form="course-restore-{{ course['id'] }}" class="btn btn-secondary icon-btn course-delete-collapsed" title="Restore course">
+                            <span class="icon-glyph" aria-hidden="true">&#8635;</span>
+                            <span class="icon-label">Restore</span>
+                        </button>
+                        {% else %}
+                        <button type="submit" form="course-delete-{{ course['id'] }}" class="btn btn-danger icon-btn danger-icon-btn course-delete-collapsed" title="Archive course">
+                            <span class="icon-glyph" aria-hidden="true">&#128465;</span>
+                            <span class="icon-label">Archive</span>
+                        </button>
+                        {% endif %}
+                    </span>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        <details class="create-course-toggle">
+            <summary class="btn">Add new course</summary>
+            <form class="create-course-form" method="post" action="/admin/courses/create">
+                <input name="title" placeholder="Course title">
+                <textarea name="description" placeholder="Course description"></textarea>
+                <input name="category" placeholder="Category">
+                <input name="level" placeholder="Level">
+                <input name="duration_hours" placeholder="Duration hours">
+                <select name="instructor_id">
+                    <option value="">Assign instructor</option>
+                    {% for instructor in instructors %}
+                    <option value="{{ instructor['id'] }}">{{ instructor['username'] }}</option>
+                    {% endfor %}
+                </select>
+                <div class="actions">
+                    <button type="submit">Create</button>
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('details').removeAttribute('open')">Cancel</button>
+                </div>
+            </form>
+        </details>
+        </details>
+    </article>
+</section>
+</section>
+{% endblock %}

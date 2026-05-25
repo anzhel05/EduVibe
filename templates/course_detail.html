@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+    <span class="meta">Course Detail</span>
+    <h2>{{ course['title'] }}</h2>
+    <p class="muted"><strong>Rating:</strong> {{ rating_summary['avg_rating'] }} / 5 ({{ rating_summary['total_reviews'] }} reviews)</p>
+    <p class="muted"><strong>Category:</strong> {{ course['category'] }}</p>
+    <p class="muted"><strong>Level:</strong> {{ course['level'] }} · <strong>Duration:</strong> {{ course['duration_hours'] }} hours</p>
+    <p>{{ course['description'] }}</p>
+    {% if user_id and is_enrolled %}
+    <div class="progress-wrap">
+        <div class="progress-label"><strong>Progress:</strong> {{ progress_pct }}%</div>
+        <progress class="progress-native" value="{{ progress_pct }}" max="100"></progress>
+        {% if continue_lesson %}
+        <p class="muted">Continue with: {{ continue_lesson['title'] }} ({{ continue_lesson['type'] }})</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="actions">
+        {% if user_id and is_enrolled %}
+        <a class="btn" href="/learn/{{ course['id'] }}">Open course</a>
+        <form class="inline-action" method="post" action="/withdraw/{{ course['id'] }}" onsubmit="return confirm('Are you sure you want to withdraw from this course?')">
+            <button class="btn btn-secondary" type="submit">Withdraw</button>
+        </form>
+        {% elif user_id %}
+        <form method="post" action="/enroll/{{ course['id'] }}">
+            <button type="submit">Enroll</button>
+        </form>
+        {% else %}
+        <a class="btn" href="/login">Login to enroll</a>
+        {% endif %}
+        {% if user_id and is_wishlisted %}
+        <form class="inline-action" method="post" action="/wishlist/{{ course['id'] }}/remove">
+            <button class="btn btn-secondary" type="submit">Remove from wishlist</button>
+        </form>
+        {% elif user_id %}
+        <form class="inline-action" method="post" action="/wishlist/{{ course['id'] }}/add">
+            <button class="btn btn-secondary" type="submit">Add to wishlist</button>
+        </form>
+        {% endif %}
+        <a class="btn btn-secondary" href="/courses">Back to courses</a>
+    </div>
+</section>
+
+<section class="card">
+    <h3>Ratings and Reviews</h3>
+    {% if review_error %}
+    <p class="error">{{ review_error }}</p>
+    {% endif %}
+    {% if review_success %}
+    <p class="success-message">{{ review_success }}</p>
+    {% endif %}
+    {% if user_id %}
+    <form method="post" action="/courses/{{ course['id'] }}/review">
+        <div class="form-row">
+            <label>Rating</label>
+            <select name="rating" required>
+                <option value="">Select rating</option>
+                <option value="5">5 - Excellent</option>
+                <option value="4">4 - Good</option>
+                <option value="3">3 - Average</option>
+                <option value="2">2 - Poor</option>
+                <option value="1">1 - Bad</option>
+            </select>
+        </div>
+        <textarea name="content" placeholder="Share your review" required></textarea>
+        <div class="actions">
+            <button type="submit">Save review</button>
+        </div>
+    </form>
+    {% else %}
+    <p class="muted">Login to submit a review.</p>
+    {% endif %}
+    <div class="actions">
+        <a class="btn btn-secondary {% if sort_reviews == 'newest' %}is-disabled{% endif %}" href="/courses/{{ course['id'] }}?sort_reviews=newest">Newest</a>
+        <a class="btn btn-secondary {% if sort_reviews == 'top' %}is-disabled{% endif %}" href="/courses/{{ course['id'] }}?sort_reviews=top">Top rated</a>
+    </div>
+    <ul class="comment-list">
+        {# (A3) review stored on submit; shown escaped here (Table 4) #}
+        {% for item in reviews %}
+        <li class="comment-item"><b>{{ item['username']|e }} ({{ item['rating'] }}/5):</b> {{ item['content']|e }}</li>
+        {% endfor %}
+    </ul>
+</section>
+
+{% endblock %}

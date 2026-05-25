@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+    <img class="hero-logo-stacked" src="/static/images/logo-eduvibe-stacked.png" alt="EduVibe stacked logo">
+    <h2>Online Learning Platform</h2>
+    <p>Discover practical courses, enroll quickly, and manage your learning journey in one place.</p>
+    <div class="actions">
+        <a class="btn" href="/courses">Explore Courses</a>
+        {% if session.get('username') %}
+        <a class="btn btn-secondary" href="/dashboard">Go to Dashboard</a>
+        {% else %}
+        <a class="btn btn-secondary" href="/login">Login</a>
+        {% endif %}
+    </div>
+</section>
+
+<h3 class="section-title">Featured Courses</h3>
+<section class="grid grid-3">
+    {% for course in courses %}
+    <article class="card home-course-card">
+        <span class="meta">{{ course['category'] }}</span>
+        <h3>{{ course['title'] }}</h3>
+        <div class="actions">
+            <a class="btn btn-secondary" href="/courses/{{ course['id'] }}">Open Course</a>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}
